@@ -6,11 +6,15 @@ const { Pool } = require("pg");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors({
-    origin: "https://fenix.vercel.app", // URL do frontend no Vercel
-    methods: ["GET","POST","PUT","DELETE"],
+const corsOptions = {
+    origin: [
+        "http://localhost:3000",      // dev local
+        "fenix-git-master-alan-meinbergs-projects.vercel.app"    // seu front no Vercel
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
-}));
+};
 app.use(express.json());
 
 // Conexão com Postgres
