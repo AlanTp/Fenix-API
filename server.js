@@ -6,15 +6,26 @@ const { Pool } = require("pg");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Configuração de CORS
 const corsOptions = {
     origin: [
-        "http://localhost:3000",      // dev local
-        "fenix-git-master-alan-meinbergs-projects.vercel.app"    // seu front no Vercel
+        "http://localhost:3000",      // para testes locais
+        "https://fenix.vercel.app"    // sua URL do front no Vercel
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
 };
+
+// 🔎 Loga a origem das requisições (debug)
+app.use((req, res, next) => {
+    console.log("🔎 Origem:", req.headers.origin, "Método:", req.method);
+    next();
+});
+
+// Aplica o CORS
+app.use(cors(corsOptions));
+// Middleware para JSON
 app.use(express.json());
 
 // Conexão com Postgres
@@ -27,11 +38,10 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false },
 });
 
-// Rota de batidas
+// Rotas
 app.get("/Batidas", async (req, res) => {
     try {
         const { colaborador, inicio, fim } = req.query;
-
         let query = "SELECT * FROM batidas WHERE 1=1";
         const values = [];
         let count = 1;
@@ -57,7 +67,6 @@ app.get("/Batidas", async (req, res) => {
         }
 
         query += ` ORDER BY data DESC`;
-
         const result = await pool.query(query, values);
         res.json(result.rows);
     } catch (e) {
@@ -68,34 +77,26 @@ app.get("/Batidas", async (req, res) => {
 
 app.post("/Batidas", async (req, res) => {
     try {
-        // Pega os dados do corpo da requisição
         const { data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name } = req.body;
 
-        // Monta a query de insert
         const query = `
             INSERT INTO batidas (data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING *;
         `;
 
-        // Passa os valores recebidos para a query
         const values = [data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name];
-
-        // Executa no banco
         const result = await pool.query(query, values);
 
-        // Retorna sucesso
         res.status(201).json({
             message: "✅ Batida inserida com sucesso!",
             batida: result.rows[0],
         });
-
     } catch (error) {
         console.error("❌ Erro ao inserir batida:", error);
         res.status(500).json({ error: "Erro no servidor" });
     }
 });
-
 
 app.listen(PORT, () => {
     console.log(`🚀 API rodando em http://localhost:${PORT}`);
