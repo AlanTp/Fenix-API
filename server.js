@@ -47,7 +47,7 @@ app.get("/Batidas", async (req, res) => {
         const { colaborador, inicio, fim } = req.query;
         let query =`
             SELECT
-                TO_CHAR(data, 'YYYY-MM-DD') AS data,
+                data,
                 colaborador,
                 batida_normal,
                 batida_extra,
