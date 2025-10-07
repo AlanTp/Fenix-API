@@ -12,8 +12,9 @@ pgTypes.setTypeParser(1082, (val) => val);
 // Configuração de CORS
 const corsOptions = {
     origin: [
-        "http://localhost:3000",      // para testes locais
-        "https://fenix.vercel.app"    // sua URL do front no Vercel
+        "http://localhost:3000",
+        "https://fenix.vercel.app",
+        "https://fenix-three.vercel.app"
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
