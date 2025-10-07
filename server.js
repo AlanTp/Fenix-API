@@ -5,6 +5,9 @@ const { Pool } = require("pg");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const pgTypes = require("pg-types");
+pgTypes.setTypeParser(1082, (val) => val);
+
 
 // Configuração de CORS
 const corsOptions = {
@@ -42,7 +45,19 @@ const pool = new Pool({
 app.get("/Batidas", async (req, res) => {
     try {
         const { colaborador, inicio, fim } = req.query;
-        let query = "SELECT * FROM batidas WHERE 1=1";
+        let query =`
+            SELECT
+                data,
+                colaborador,
+                batida_normal,
+                batida_extra,
+                meta,
+                amostra,
+                perdas,
+                user_name
+            FROM batidas
+            WHERE 1=1
+        `;
         const values = [];
         let count = 1;
 
@@ -68,7 +83,9 @@ app.get("/Batidas", async (req, res) => {
 
         query += ` ORDER BY data DESC`;
         const result = await pool.query(query, values);
+
         res.json(result.rows);
+
     } catch (e) {
         console.error("Erro ao consultar o banco:", e);
         res.status(500).send("Erro no servidor");
@@ -100,4 +117,42 @@ app.post("/Batidas", async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 API rodando em http://localhost:${PORT}`);
+});
+
+
+app.get("/Valvulas", async (req, res) => {
+    try {
+        const { colaborador, inicio, fim } = req.query;
+        let query = "SELECT * FROM valvulas WHERE 1=1";
+        const values = [];
+        let count = 1;
+
+        if (colaborador) {
+            query += ` AND colaborador ILIKE $${count}`;
+            values.push(`%${colaborador}%`);
+            count++;
+        }
+
+        if (inicio && fim) {
+            query += ` AND data BETWEEN $${count} AND $${count + 1}`;
+            values.push(inicio, fim);
+            count += 2;
+        } else if (inicio) {
+            query += ` AND data >= $${count}`;
+            values.push(inicio);
+            count++;
+        } else if (fim) {
+            query += ` AND data <= $${count}`;
+            values.push(fim);
+            count++;
+        }
+
+        query += ` ORDER BY data DESC`;
+        const result = await pool.query(query, values);
+        console.log(result.rows[0]);
+        res.json(result.rows);
+    } catch (e) {
+        console.error("Erro ao consultar o banco:", e);
+        res.status(500).send("Erro no servidor");
+    }
 });
