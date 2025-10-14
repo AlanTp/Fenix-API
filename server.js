@@ -123,7 +123,7 @@ app.get("/Valvulas", async (req, res) => {
          data,
          colaborador,
          valvula_normal,
-         valvula_exta
+         valvula_extra
         FROM valvulas WHERE 1=1`;
         const values = [];
         let count = 1;
@@ -172,11 +172,11 @@ app.post("/Valvulas", async (req, res) => {
         const result = await pool.query(query, values);
 
         res.status(201).json({
-            message: "✅ Batida inserida com sucesso!",
+            message: "✅ Valvula inserida com sucesso!",
             batida: result.rows[0],
         });
     } catch (error) {
-        console.error("❌ Erro ao inserir batida:", error);
+        console.error("❌ Erro ao inserir valvulas:", error);
         res.status(500).json({ error: "Erro no servidor" });
     }
 });
