@@ -116,15 +116,15 @@ app.post("/Batidas", async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 API rodando em http://localhost:${PORT}`);
-});
-
-
 app.get("/Valvulas", async (req, res) => {
     try {
         const { colaborador, inicio, fim } = req.query;
-        let query = "SELECT * FROM valvulas WHERE 1=1";
+        let query = `SELECT 
+         data,
+         colaborador,
+         valvula_normal,
+         valvula_exta
+        FROM valvulas WHERE 1=1`;
         const values = [];
         let count = 1;
 
@@ -150,10 +150,37 @@ app.get("/Valvulas", async (req, res) => {
 
         query += ` ORDER BY data DESC`;
         const result = await pool.query(query, values);
-        console.log(result.rows[0]);
+
         res.json(result.rows);
     } catch (e) {
         console.error("Erro ao consultar o banco:", e);
         res.status(500).send("Erro no servidor");
     }
+});
+
+app.post("/Valvulas", async (req, res) => {
+    try {
+        const { data, colaborador, valvula_normal, valvula_extra, user_name } = req.body;
+
+        const query = `
+            INSERT INTO valvulas (data, colaborador, valvula_normal, valvula_extra, user_name)
+            VALUES ($1, $2, $3, $4, $5)
+                RETURNING *;
+        `;
+
+        const values = [data, colaborador, valvula_normal, valvula_extra, user_name];
+        const result = await pool.query(query, values);
+
+        res.status(201).json({
+            message: "✅ Batida inserida com sucesso!",
+            batida: result.rows[0],
+        });
+    } catch (error) {
+        console.error("❌ Erro ao inserir batida:", error);
+        res.status(500).json({ error: "Erro no servidor" });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 API rodando em http://localhost:${PORT}`);
 });
