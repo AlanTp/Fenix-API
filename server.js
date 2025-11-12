@@ -2,14 +2,16 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const pgTypes = require("pg-types");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const pgTypes = require("pg-types");
+const JWT_SECRET = process.env.JWT_SECRET || "chave-secreta-forte";
 pgTypes.setTypeParser(1082, (val) => val);
 
-
-// Configuração de CORS
+// ⚠️ Mover essas linhas para o topo!
 const corsOptions = {
     origin: [
         "http://localhost:3000",
@@ -20,6 +22,9 @@ const corsOptions = {
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
 };
+app.use(cors(corsOptions));
+app.use(express.json());
+
 
 // 🔎 Loga a origem das requisições (debug)
 app.use((req, res, next) => {
@@ -43,7 +48,43 @@ const pool = new Pool({
 });
 
 // Rotas
-app.get("/Batidas", async (req, res) => {
+
+//login
+app.post("/Login", async (req, res) =>{
+
+    const {login,senha} = req.body;
+    if (!login || !senha) {
+        return res.status(400).json({ erro: "Login e senha são obrigatórios" });
+    }
+    try{
+        const query = "SELECT * FROM usuarios WHERE nome = $1";
+        const result = await pool.query(query, [login]);
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({ erro: "Usuário não encontrado" });
+        }
+        const usuario = result.rows[0];
+        //const senhaCriptografada = await bcrypt.hash(senha, 10); encriptando senha
+        const senhaValida = await bcrypt.compare(senha, usuario.senha);
+
+        if (!senhaValida) {
+            return res.status(401).json({ erro: "Senha incorreta" });
+        }
+        const token = jwt.sign(
+            { id: usuario.id, nome: usuario.nome, email: usuario.email },
+            JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+        res.json({ token, nome: usuario.nome });
+    }
+    catch (error){
+        console.error("Erro no login:", error);
+        res.status(500).json({ erro: "Erro interno no servidor" });
+    }
+
+})
+
+app.get("/Batidas",autenticarToken, async (req, res) => {
     try {
         const { colaborador, inicio, fim } = req.query;
         let query =`
@@ -93,7 +134,7 @@ app.get("/Batidas", async (req, res) => {
     }
 });
 
-app.post("/Batidas", async (req, res) => {
+app.post("/Batidas",autenticarToken, async (req, res) => {
     try {
         const { data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name } = req.body;
 
@@ -116,7 +157,7 @@ app.post("/Batidas", async (req, res) => {
     }
 });
 
-app.get("/Valvulas", async (req, res) => {
+app.get("/Valvulas",autenticarToken, async (req, res) => {
     try {
         const { colaborador, inicio, fim } = req.query;
         let query = `SELECT 
@@ -158,7 +199,7 @@ app.get("/Valvulas", async (req, res) => {
     }
 });
 
-app.post("/Valvulas", async (req, res) => {
+app.post("/Valvulas", autenticarToken, async (req, res) => {
     try {
         const { data, colaborador, valvula_normal, valvula_extra, user_name } = req.body;
 
@@ -183,7 +224,7 @@ app.post("/Valvulas", async (req, res) => {
 
 //promotor
 
-app.get("/Promotor", async (req, res) => {
+app.get("/Promotor",autenticarToken, async (req, res) => {
     try {
         const { colaborador, inicio, fim } = req.query;
         let query = `SELECT 
@@ -225,7 +266,7 @@ app.get("/Promotor", async (req, res) => {
     }
 });
 
-app.post("/Promotor", async (req, res) => {
+app.post("/Promotor", autenticarToken, async (req, res) => {
     try {
         const { data, colaborador, promotor_normal, promotor_extra, user_name } = req.body;
 
@@ -248,6 +289,18 @@ app.post("/Promotor", async (req, res) => {
     }
 });
 
+function autenticarToken(req, res, next) {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+
+    if (!token) return res.status(401).json({ erro: "Token não fornecido" });
+
+    jwt.verify(token, JWT_SECRET, (err, usuario) => {
+        if (err) return res.status(403).json({ erro: "Token inválido ou expirado" });
+        req.usuario = usuario;
+        next();
+    });
+}
 
 app.listen(PORT, () => {
     console.log(`🚀 API rodando em http://localhost:${PORT}`);
