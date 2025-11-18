@@ -5,6 +5,7 @@ const { Pool } = require("pg");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const pgTypes = require("pg-types");
+const {response} = require("express");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -59,12 +60,12 @@ app.post("/Login", async (req, res) =>{
     try{
         const query = "SELECT * FROM usuarios WHERE nome = $1";
         const result = await pool.query(query, [login]);
-
+        //const senhaCriptografada = await bcrypt.hash(senha, 10);
         if (result.rows.length === 0) {
             return res.status(401).json({ erro: "Usuário não encontrado" });
         }
         const usuario = result.rows[0];
-        //const senhaCriptografada = await bcrypt.hash(senha, 10); encriptando senha
+
         const senhaValida = await bcrypt.compare(senha, usuario.senha);
 
         if (!senhaValida) {
@@ -286,6 +287,53 @@ app.post("/Promotor", autenticarToken, async (req, res) => {
     } catch (error) {
         console.error("❌ Erro ao inserir batidas Promotor:", error);
         res.status(500).json({ error: "Erro no servidor" });
+    }
+});
+
+//busca receitas tintas
+
+app.get("/Tons", autenticarToken, async (req, res) => {
+    try {
+        const { nome } = req.query;
+
+        const query = `
+            SELECT nome, codigo, data_criacao
+            FROM cores_tons
+            WHERE nome LIKE $1
+            ORDER BY data_criacao DESC
+        `;
+
+        const result = await pool.query(query, [`%${nome}%`]);
+
+        res.json(result.rows);
+    } catch (e) {
+        console.error("Erro ao consultar o banco:", e);
+        res.status(500).send("Erro no servidor");
+    }
+});
+
+app.get("/Receitas",autenticarToken,async (req,res) => {
+    try{
+        const { codigo } = req.query;
+
+        const query = `
+            SELECT
+                cp.nome,
+                r.unidade,
+                r.quantidade
+            FROM receitas r
+                     INNER JOIN cores_primarias cp ON cp.id = r.id_cor
+                     INNER JOIN cores_tons ct ON ct.id = r.id_tom
+            WHERE ct.codigo = $1
+            ORDER BY r.id DESC
+        `;
+
+        const result = await pool.query(query, [codigo]);
+
+        res.json(result.rows);
+    }catch (e) {
+        console.error("Erro ao consultar o banco:", e);
+        res.status(500).send("Erro no servidor");
     }
 });
 
