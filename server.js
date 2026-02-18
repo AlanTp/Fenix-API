@@ -12,7 +12,6 @@ const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || "chave-secreta-forte";
 pgTypes.setTypeParser(1082, (val) => val);
 
-// ⚠️ Mover essas linhas para o topo!
 const corsOptions = {
     origin: [
         "http://localhost:3000",
@@ -336,6 +335,120 @@ app.get("/Receitas",autenticarToken,async (req,res) => {
         res.status(500).send("Erro no servidor");
     }
 });
+
+//cadastro das receitas
+
+app.post("/CadastroTons", autenticarToken, async (req,res) =>{
+    try{
+        const {nome,codigo,data_criacao} = req.body;
+
+        const query = `
+        insert into cores_tons (nome,codigo,data_criacao) values 
+        ($1,$2,$3) returning * ;
+        `;
+        const values = [nome,codigo,data_criacao];
+        const result = await pool.query(query, values);
+
+        res.status(201).json({
+            message: "✅ Ton cadastrado com sucesso!",
+            Ton: result.rows[0],
+        });
+
+    }catch (e) {
+        console.error("Erro ao consultar o banco:", e);
+        res.status(500).send("Erro no servidor");
+    }
+});
+
+app.post("/CadastroReceitas", autenticarToken, async (req,res) =>{
+    try{
+        const {nome,codigo,id_tom,id_cor,unidade,quantidade} = req.body;
+
+        const query = `
+            insert into receitas (nome,codigo,id_tom,id_cor,unidade, quantidade) values 
+        ($1,$2,$3, $4, $5, $6) returning * ;
+        `;
+        const values = [nome,codigo,id_tom,id_cor,unidade,quantidade];
+        const result = await pool.query(query, values);
+
+        res.status(201).json({
+            message: "✅ Receita cadastrada com sucesso!",
+            Receita: result.rows[0],
+        });
+
+    }catch (e) {
+        console.error("Erro ao consultar o banco:", e);
+        res.status(500).send("Erro no servidor");
+    }
+});
+
+app.post("/Pedidos", autenticarToken, async (req, res) =>{
+    const client = await pool.connect();
+        try{
+            const {cliente,dataEmissao,dataEntrega,tipoPedido,valvula,promotor,silk,quantidadeBatidas,estoque,arte,vendedor,
+                status,comissao, tipoPagamento,tipoFrete,cidade,cep,ulimaAlteracao,usuario,itens} = req.body;
+
+            if (!itens || itens.length === 0) {
+                return res.status(400).json({
+                    message: "O pedido deve conter ao menos um item"
+                });
+            }
+
+            await client.query("BEGIN");
+
+            const pedidoQuery = `
+                insert into pedidos
+                (cliente_nome, data_emissao, data_entrega, tipo_pedido, valvula, promotor, silk, quantidade_batidas, estoque, arte, vendedor, status, comissao,tipoPagamento,tipofrete,cidade,cep,data_ultima_alteracao,usuario)
+                VALUES( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14,$15,$16,$17,$18,$19)
+                    RETURNING id`;
+
+
+            const pedidoValues=[cliente,dataEmissao,dataEntrega,tipoPedido,valvula,promotor,silk,quantidadeBatidas,estoque,arte,vendedor,
+                status,comissao,tipoPagamento,tipoFrete,cidade,cep,ulimaAlteracao,usuario];
+            const pedidoResult = await client.query(pedidoQuery, pedidoValues);
+
+            const pedidoId = pedidoResult.rows[0].id;
+
+            const itemQuery = `
+            insert into itens(id_pedido, data_registro, descricao, preco, tipounidade, quantidade)
+            values($1,$2,$3,$4,$5,$6)`;
+
+
+            for (const item of itens) {
+                const itemValues = [
+                    pedidoId,
+                    dataEmissao,
+                    item.descricao,
+                    item.preco,
+                    item.tipoUnidade,
+                    item.quantidade
+                ];
+
+                await client.query(itemQuery, itemValues);
+            }
+            await client.query("COMMIT");
+
+
+            res.status(201).json({
+                message: "✅ Pedido e itens cadastrados com sucesso!"
+            });
+
+
+        }catch (error) {
+            await client.query("ROLLBACK");
+
+            console.error("Erro ao cadastrar pedido:", error);
+
+            res.status(500).json({
+                message: "❌ Erro ao cadastrar pedido",
+                error: error.message
+            });
+        } finally {
+            client.release();
+        }
+});
+
+
 
 function autenticarToken(req, res, next) {
     const authHeader = req.headers["authorization"];
