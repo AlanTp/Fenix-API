@@ -22,13 +22,10 @@ const corsOptions = {
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
 };
-app.use(cors(corsOptions));
-app.use(express.json());
-
 
 // 🔎 Loga a origem das requisições (debug)
 app.use((req, res, next) => {
-    console.log("🔎 Origem:", req.headers.origin, "Método:", req.method);
+    console.log("👉", req.method, req.url, "| Origin:", req.headers.origin);
     next();
 });
 
