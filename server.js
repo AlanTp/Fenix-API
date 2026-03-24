@@ -94,7 +94,8 @@ app.get("/Batidas",autenticarToken, async (req, res) => {
                 meta,
                 amostra,
                 perdas,
-                user_name
+                user_name,
+                npedido
             FROM batidas
             WHERE 1=1
         `;
@@ -134,15 +135,15 @@ app.get("/Batidas",autenticarToken, async (req, res) => {
 
 app.post("/Batidas",autenticarToken, async (req, res) => {
     try {
-        const { data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name } = req.body;
+        const { data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name, nPedido } = req.body;
 
         const query = `
-            INSERT INTO batidas (data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO batidas (data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name,npedido)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
                 RETURNING *;
         `;
 
-        const values = [data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name];
+        const values = [data, colaborador, batida_normal, batida_extra, meta, amostra, perdas, user_name,nPedido];
         const result = await pool.query(query, values);
 
         res.status(201).json({
