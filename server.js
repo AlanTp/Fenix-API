@@ -384,8 +384,8 @@ app.post("/CadastroReceitas", autenticarToken, async (req,res) =>{
 app.post("/Pedidos", autenticarToken, async (req, res) =>{
     const client = await pool.connect();
         try{
-            const {cliente,dataEmissao,dataEntrega,tipoPedido,valvula,promotor,silk,quantidadeBatidas,estoque,arte,vendedor,
-                status,comissao, tipoPagamento,tipoFrete,cidade,cep,ulimaAlteracao,usuario,itens} = req.body;
+            const {cliente_nome, data_emissao, data_entrega, tipo_pedido, valvula, promotor, silk, quantidade_batidas,
+                estoque, arte, vendedor, status, comissao, tipopagamento, tipofrete, endereco, cidade, cep, transportadora, data_ultima_alteracao, usuario,itens} = req.body;
 
             if (!itens || itens.length === 0) {
                 return res.status(400).json({
@@ -397,13 +397,13 @@ app.post("/Pedidos", autenticarToken, async (req, res) =>{
 
             const pedidoQuery = `
                 insert into pedidos
-                (cliente_nome, data_emissao, data_entrega, tipo_pedido, valvula, promotor, silk, quantidade_batidas, estoque, arte, vendedor, status, comissao,tipoPagamento,tipofrete,cidade,cep,data_ultima_alteracao,usuario)
-                VALUES( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14,$15,$16,$17,$18,$19)
+                (cliente_nome, data_emissao, data_entrega, tipo_pedido, valvula, promotor, silk, quantidade_batidas, estoque, arte, vendedor, status, comissao, tipopagamento, tipofrete, endereco, cidade, cep, transportadora, data_ultima_alteracao, usuario)
+                VALUES( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,$14,$15,$16,$17,$18,$19,$20,$21)
                     RETURNING id`;
 
 
-            const pedidoValues=[cliente,dataEmissao,dataEntrega,tipoPedido,valvula,promotor,silk,quantidadeBatidas,estoque,arte,vendedor,
-                status,comissao,tipoPagamento,tipoFrete,cidade,cep,ulimaAlteracao,usuario];
+            const pedidoValues=[cliente_nome, data_emissao, data_entrega, tipo_pedido, valvula, promotor, silk, quantidade_batidas, estoque, arte, vendedor,
+                status, comissao, tipopagamento, tipofrete, endereco, cidade, cep, transportadora, data_ultima_alteracao, usuario];
             const pedidoResult = await client.query(pedidoQuery, pedidoValues);
 
             const pedidoId = pedidoResult.rows[0].id;
@@ -416,7 +416,7 @@ app.post("/Pedidos", autenticarToken, async (req, res) =>{
             for (const item of itens) {
                 const itemValues = [
                     pedidoId,
-                    dataEmissao,
+                    data_emissao,
                     item.descricao,
                     item.preco,
                     item.tipoUnidade,
@@ -445,6 +445,43 @@ app.post("/Pedidos", autenticarToken, async (req, res) =>{
         } finally {
             client.release();
         }
+});
+
+app.get("/ListaPedidos", autenticarToken, async (req, res) => {
+    try{
+        const { dataInicial, dataFinal, dataEntrega, cidade, cliente } = req.query;
+
+        let query = `SELECT * FROM pedidos WHERE 1=1`;
+        const values =[];
+        let count = 1;
+        if(dataInicial && dataFinal){
+            query += ` and data_emissao between $${count} and $${count +1}`;
+            values.push(dataInicial,dataFinal);
+            count += 2;
+        }
+        if(dataEntrega){
+            query += ` and data_entrega = $${count}`;
+            values.push(dataEntrega);
+            count++;
+        }
+
+        if(cliente){
+            query += ` and cliente_nome ILIKE $${count}`;
+            values.push(`%${cliente}%`);
+            count++;
+        }
+        if(cidade){
+            query += ` and cidade ILIKE $${count}`;
+            values.push(cidade);
+            count++;
+        }
+        const result = await pool.query(query,values);
+
+        res.json(result.rows);
+    }catch (e) {
+        console.error("Erro ao consultar o banco:", e);
+        e.status(500).json({ erro: e.message, stack: e.stack });
+    }
 });
 
 
